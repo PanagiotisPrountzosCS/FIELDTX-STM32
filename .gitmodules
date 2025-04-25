@@ -1,0 +1,3 @@
+[submodule "modules/ALSMD"]
+	path = modules/ALSMD
+	url = https://github.com/PanagiotisPrountzosCS/ALSMD
