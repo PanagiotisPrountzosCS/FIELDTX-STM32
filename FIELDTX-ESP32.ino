@@ -11,30 +11,36 @@
 
 #include "esp_sleep.h"
 
-RTC_DATA_ATTR LSM303 sensor(false, true);
-RTC_DATA_ATTR bool shouldInitializeSensor = true;
+RTC_DATA_ATTR LSM303 sensor(true, false);
+RTC_DATA_ATTR bool firstBoot = true;
 
 void setup() {
+    auto start = millis();
     Serial.begin(115200);
     Wire.begin();
-    fvec3 accelReading;
-    if (shouldInitializeSensor && sensor.checkI2CCommunication()) {
-        sensor.setAccelPowerMode(ACCEL_MODE_LOW_POWER);
-        sensor.setAccelDataRate(RATE_1_5HZ);
-        sensor.setAccelScale(ACCEL_SCALE_8G);
 
-        shouldInitializeSensor = false;
+    fvec3 magReading;
+    if (firstBoot) {
+        sensor.configure(ACCEL_RATE_0HZ, MAG_RATE_3HZ, ACCEL_MODE_POWERDOWN, MAG_MODE_CONTINUOUS,
+                         ACCEL_SCALE_2G, MAG_SCALE_8_1);
+        sensor.init();
         Serial.println("Initialized sensor");
+        firstBoot = false;
     }
-    sensor.statusDump();
-    sensor.readAccel(accelReading);
-    Serial.println(accelReading.x);
-    Serial.println(accelReading.y);
-    Serial.println(accelReading.z);
-    esp_sleep_enable_timer_wakeup(3'000'000);  // 1 second
-}
+    
+    sensor.readMag(magReading);
+    // this should be the ble advertisement part of all this!
+    Serial.println(magReading.x);
+    Serial.println(magReading.y);
+    Serial.println(magReading.z);
 
-void loop() {
-    Serial.println("Deep sleeping");
+    auto end = millis();
+    Serial.print("Deep sleeping for 1 second, after running for ");
+    Serial.print(end - start);
+    Serial.println(" milliseconds!");
+
+    esp_sleep_enable_timer_wakeup(1'000'000);  // 1 second
     esp_deep_sleep_start();
 }
+
+void loop() {}
