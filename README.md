@@ -1,5 +1,6 @@
 # DATAFLUX
-DATAFLUX is a simple implementation of a node microcontroller, using ALSMD and MQTT to transmit magnetic sensor data over wifi
+DATAFLUX is a simple implementation of a master node and a slave node used for sensor monitoring.
+The two(or more) nodes communicate via ESP-NOW, and the master node transmits the data through mqtt to any broker
 
 # Installation
 This repo is built using the arduino compilers, or simply the arduino IDE
