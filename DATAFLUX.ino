@@ -4,43 +4,58 @@
  *
  */
 
+#include <WiFi.h>
+#include <esp_now.h>
+
 #include "DATAFLUX.h"
-#include "modules/ALSMD/ALSMD.h"
 
-// anything else here
-
-#include "esp_sleep.h"
+// Receiver MAC address
+uint8_t masterMAC[] = {0x54, 0x32, 0x04, 0x3D, 0x5C, 0xF4};
 
 RTC_DATA_ATTR LSM303 sensor(true, false);
-RTC_DATA_ATTR bool firstBoot = true;
+RTC_DATA_ATTR bool shouldInitLSM = true;
+RTC_DATA_ATTR esp_now_peer_info_t masterInfo{};
+RTC_DATA_ATTR fvec3 magData;
+RTC_DATA_ATTR message slaveMessage;
 
 void setup() {
-    auto start = millis();
-    Serial.begin(115200);
+    // initializations
+    setCpuFrequencyMhz(80);
     Wire.begin();
+    WiFi.mode(WIFI_STA);
 
-    fvec3 magReading;
-    if (firstBoot) {
-        sensor.configure(ACCEL_RATE_0HZ, MAG_RATE_3HZ, ACCEL_MODE_POWERDOWN, MAG_MODE_CONTINUOUS,
-                         ACCEL_SCALE_2G, MAG_SCALE_8_1);
-        sensor.init();
-        Serial.println("Initialized sensor");
-        firstBoot = false;
+    // setup esp_now
+    initEspNow(&masterInfo, masterMAC);
+
+    // setup LSM303
+    if (shouldInitLSM) {
+        initLSM(&sensor);
+        shouldInitLSM = false;
     }
 
-    sensor.readMag(magReading);
-    // this should be the ble advertisement part of all this!
-    Serial.println(magReading.x);
-    Serial.println(magReading.y);
-    Serial.println(magReading.z);
+    // validate I2C communication
+    if(!sensor.checkI2CCommunication()){
+        shouldInitLSM = true;
+        handleError(LSM_COMMUNICATION_FAIL);
+        deepSleep(ERRORSLEEPDURATIONMS);
+    }
 
-    auto end = millis();
-    Serial.print("Deep sleeping for 1 second, after running for ");
-    Serial.print(end - start);
-    Serial.println(" milliseconds!");
+    // make measurement
 
-    esp_sleep_enable_timer_wakeup(1'000'000);  // 1 second
-    esp_deep_sleep_start();
+    sensor.readMag(magData);
+
+    // package it
+
+    slaveMessage = package(magData);
+
+    // transmit it
+
+    transmitMessage(&slaveMessage, masterMAC);
+
+    // deepsleep, until next iteration
+    deepSleep(NORMALSLEEPDURATIONMS);
 }
 
-void loop() {}
+void loop() {
+    // Should not reach here
+}
