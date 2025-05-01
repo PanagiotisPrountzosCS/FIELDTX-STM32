@@ -2,45 +2,43 @@
  *
  *  Panagiotis Prountzos 2025
  *
+ *  MASTER NODE - THIS BRANCH HOLDS THE FIRMWARE FOR THE MASTER ESP32
+ *
  */
 
+#include <WiFi.h>
+#include <esp_now.h>
+
 #include "DATAFLUX.h"
-#include "modules/ALSMD/ALSMD.h"
 
-// anything else here
-
-#include "esp_sleep.h"
-
-RTC_DATA_ATTR LSM303 sensor(true, false);
-RTC_DATA_ATTR bool firstBoot = true;
-
-void setup() {
-    auto start = millis();
-    Serial.begin(115200);
-    Wire.begin();
-
-    fvec3 magReading;
-    if (firstBoot) {
-        sensor.configure(ACCEL_RATE_0HZ, MAG_RATE_3HZ, ACCEL_MODE_POWERDOWN, MAG_MODE_CONTINUOUS,
-                         ACCEL_SCALE_2G, MAG_SCALE_8_1);
-        sensor.init();
-        Serial.println("Initialized sensor");
-        firstBoot = false;
+void onReceive(const esp_now_recv_info_t *info, const uint8_t *data, int len) {
+    if (len != sizeof(message)) {
+        Serial.println("Received invalid message size");
+        return;
     }
 
-    sensor.readMag(magReading);
-    // this should be the ble advertisement part of all this!
-    Serial.println(magReading.x);
-    Serial.println(magReading.y);
-    Serial.println(magReading.z);
+    message msg;
+    memcpy(&msg, data, sizeof(msg));
 
-    auto end = millis();
-    Serial.print("Deep sleeping for 1 second, after running for ");
-    Serial.print(end - start);
-    Serial.println(" milliseconds!");
-
-    esp_sleep_enable_timer_wakeup(1'000'000);  // 1 second
-    esp_deep_sleep_start();
+    Serial.print("ID: ");
+    Serial.print(msg.id);
+    Serial.print(" | x: ");
+    Serial.print(msg.x);
+    Serial.print(" | y: ");
+    Serial.print(msg.y);
+    Serial.print(" | z: ");
+    Serial.println(msg.z);
 }
 
-void loop() {}
+void setup() {
+    Serial.begin(115200);
+    WiFi.mode(WIFI_STA);
+
+    initEspNow();
+
+    esp_now_register_recv_cb(onReceive);
+}
+
+void loop() {
+    delay(1000);  // Passive wait
+}

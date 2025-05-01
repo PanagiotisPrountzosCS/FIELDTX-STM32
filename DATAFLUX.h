@@ -7,8 +7,39 @@
 #ifndef _DATAFLUX_H
 #define _DATAFLUX_H
 
+#define LEDPIN 15
+#define ERRORSLEEPDURATIONMS 2500
+#define NORMALSLEEPDURATIONMS 1000
+
 typedef struct {
-    uint8_t payload[16];
+    float x;
+    float y;
+    float z;
+    uint32_t id;
 } message;
+
+enum ErrorCodes {};
+
+void handleError(uint8_t errorCode) {
+    pinMode(LEDPIN, OUTPUT);
+    for (uint8_t i = 0; i < errorCode; i++) {
+        digitalWrite(LEDPIN, HIGH);
+        delay(200);
+        digitalWrite(LEDPIN, LOW);
+        delay(200);
+    }
+}
+
+void deepSleep(uint32_t durationms) {
+    esp_sleep_enable_timer_wakeup(durationms * 1000LL);
+    esp_deep_sleep_start();
+}
+
+void initEspNow() {
+    if (esp_now_init() != ESP_OK) {
+        handleError(1);
+        deepSleep(ERRORSLEEPDURATIONMS);
+    }
+}
 
 #endif
