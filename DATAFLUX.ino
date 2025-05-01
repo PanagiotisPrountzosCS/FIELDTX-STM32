@@ -1,10 +1,10 @@
-/*  FIELDTX-ESP32.ino
+/*  DATAFLUX.ino
  *
  *  Panagiotis Prountzos 2025
  *
  */
 
-#include "FIELDTX-ESP32.h"
+#include "DATAFLUX.h"
 #include "modules/ALSMD/ALSMD.h"
 
 // anything else here
@@ -27,7 +27,7 @@ void setup() {
         Serial.println("Initialized sensor");
         firstBoot = false;
     }
-    
+
     sensor.readMag(magReading);
     // this should be the ble advertisement part of all this!
     Serial.println(magReading.x);
