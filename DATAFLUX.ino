@@ -2,8 +2,7 @@
  *
  *  Panagiotis Prountzos 2025
  *
- *  MASTER NODE - THIS BRANCH HOLDS THE FIRMWARE FOR THE MASTER ESP32
- *
+ *  Master node branch
  */
 
 #include <WiFi.h>
@@ -11,23 +10,17 @@
 
 #include "DATAFLUX.h"
 
+QueueHandle_t dataQueue;
+uint32_t lastClear;
+
 void onReceive(const esp_now_recv_info_t *info, const uint8_t *data, int len) {
-    if (len != sizeof(message)) {
-        Serial.println("Received invalid message size");
-        return;
-    }
+    if (len != sizeof(message)) return;
 
     message msg;
-    memcpy(&msg, data, sizeof(msg));
+    memcpy(&msg, data, len);
 
-    Serial.print("ID: ");
-    Serial.print(msg.id);
-    Serial.print(" | x: ");
-    Serial.print(msg.x);
-    Serial.print(" | y: ");
-    Serial.print(msg.y);
-    Serial.print(" | z: ");
-    Serial.println(msg.z);
+    xQueueSend(dataQueue, &msg, portMAX_DELAY);
+    Serial.println("Message received");
 }
 
 void setup() {
@@ -36,9 +29,15 @@ void setup() {
 
     initEspNow();
 
+    // Init queue
+    dataQueue = xQueueCreate(MESSAGE_QUEUE_MAX_SIZE, sizeof(message));
+
+    // Register callback
+    lastClear = millis();
     esp_now_register_recv_cb(onReceive);
 }
 
 void loop() {
-    delay(1000);  // Passive wait
+    pollQueue(dataQueue, lastClear);
+    delay(TICK_DURATION);  // Passive wait
 }
