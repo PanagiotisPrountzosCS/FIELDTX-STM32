@@ -2,43 +2,53 @@
  *
  *  Panagiotis Prountzos 2025
  *
+ *  Master node branch
  */
 
 #ifndef _DATAFLUX_H
 #define _DATAFLUX_H
 
-#define LEDPIN 15
-#define ERRORSLEEPDURATIONMS 2500
-#define NORMALSLEEPDURATIONMS 1000
+#define LED 15
+
+#define TICK_DURATION 50
+#define MESSAGE_QUEUE_MAX_SIZE 100
+#define MESSAGE_QUEUE_FLUSH_SIZE 25
+#define MESSAGE_QUEUE_FLUSH_INTERVAL 3000
 
 typedef struct {
     float x;
     float y;
     float z;
     uint32_t id;
+    uint32_t timestamp;
 } message;
 
-enum ErrorCodes {};
+enum ErrorCodes { ESP_NOW_INIT_ERROR = 0x01 };
 
-void handleError(uint8_t errorCode) {
-    pinMode(LEDPIN, OUTPUT);
-    for (uint8_t i = 0; i < errorCode; i++) {
-        digitalWrite(LEDPIN, HIGH);
+void indicateError(uint8_t errorCode) {
+    pinMode(LED, OUTPUT);
+    for (int i = 0; i < errorCode; i++) {
+        digitalWrite(LED, HIGH);
         delay(200);
-        digitalWrite(LEDPIN, LOW);
+        digitalWrite(LED, LOW);
         delay(200);
     }
 }
 
-void deepSleep(uint32_t durationms) {
-    esp_sleep_enable_timer_wakeup(durationms * 1000LL);
-    esp_deep_sleep_start();
-}
-
 void initEspNow() {
     if (esp_now_init() != ESP_OK) {
-        handleError(1);
-        deepSleep(ERRORSLEEPDURATIONMS);
+        indicateError(1);
+    }
+}
+
+void pollQueue(QueueHandle_t dataQueue, uint32_t& lastClear) {
+    if (millis() - lastClear > MESSAGE_QUEUE_FLUSH_INTERVAL ||
+        uxQueueMessagesWaiting(dataQueue) >= MESSAGE_QUEUE_FLUSH_SIZE) {
+            message msg;
+
+            Serial.println("Emptying queue");
+            xQueueReset(dataQueue);
+            lastClear = millis();
     }
 }
 
