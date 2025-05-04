@@ -6,6 +6,8 @@
 
 #ifndef _DATAFLUX_H
 #define _DATAFLUX_H
+#include <esp_now.h>
+#include <esp_wifi.h>
 
 #define LEDPIN 15
 #define ERRORSLEEPDURATIONMS 2500
@@ -16,6 +18,7 @@ typedef struct {
     float y;
     float z;
     uint32_t id;
+    uint32_t timestamp;
 } message;
 
 enum ErrorCodes {};
@@ -30,16 +33,10 @@ void handleError(uint8_t errorCode) {
     }
 }
 
-void deepSleep(uint32_t durationms) {
-    esp_sleep_enable_timer_wakeup(durationms * 1000LL);
-    esp_deep_sleep_start();
+void initEspNow() {
+    esp_wifi_set_channel(10, WIFI_SECOND_CHAN_NONE);
+    if (esp_now_init() != ESP_OK) handleError(5);
 }
 
-void initEspNow() {
-    if (esp_now_init() != ESP_OK) {
-        handleError(1);
-        deepSleep(ERRORSLEEPDURATIONMS);
-    }
-}
 
 #endif
