@@ -2,6 +2,8 @@
  *
  *  Panagiotis Prountzos 2025
  *
+ *  Slave node branch
+ *
  */
 
 #include <WiFi.h>
@@ -9,53 +11,50 @@
 
 #include "DATAFLUX.h"
 
-// Receiver MAC address
-uint8_t masterMAC[] = {0x54, 0x32, 0x04, 0x3D, 0x5C, 0xF4};
+// firmware variables
+LSM303 sensor(true, false);
+uint8_t masterMAC[] = {0x54, 0x32, 0x04, 0x3d, 0x5c, 0xf4};
+uint32_t selfID = 0;
 
-RTC_DATA_ATTR LSM303 sensor(true, false);
-RTC_DATA_ATTR bool shouldInitLSM = true;
-RTC_DATA_ATTR esp_now_peer_info_t masterInfo{};
-RTC_DATA_ATTR fvec3 magData;
-RTC_DATA_ATTR message slaveMessage;
+// status variables
+fvec3 magReading;
+message msg;
+bool skipCycle = false;
+RTC_DATA_ATTR uint32_t elapsedTime;
+
+esp_now_peer_info_t masterInfo;
+
+void dataTransmissionCallback(const uint8_t *mac_addr, esp_now_send_status_t status) {
+    deepSleep(elapsedTime);
+}
 
 void setup() {
-    // initializations
-    setCpuFrequencyMhz(80);
-    Wire.begin();
-    WiFi.mode(WIFI_STA);
+    Serial.begin(115200);
+    initSlave();
 
-    // setup esp_now
-    initEspNow(&masterInfo, masterMAC);
+    msg.id = selfID;
 
-    // setup LSM303
-    if (shouldInitLSM) {
-        initLSM(&sensor);
-        shouldInitLSM = false;
+    if (!initESPNOW(masterInfo, masterMAC, dataTransmissionCallback)) skipCycle = true;
+
+    if (!initSensor(sensor)) skipCycle = true;
+
+    if (!sensor.checkI2CCommunication()) {
+        indicateError(SENSOR_I2C_ERROR);
+        skipCycle = true;
     }
+    if (skipCycle) deepSleep(elapsedTime);
 
-    // validate I2C communication
-    if(!sensor.checkI2CCommunication()){
-        shouldInitLSM = true;
-        handleError(LSM_COMMUNICATION_FAIL);
-        deepSleep(ERRORSLEEPDURATIONMS);
-    }
+    sensor.readMag(magReading);
+    msg.x = magReading.x;
+    msg.y = magReading.y;
+    msg.z = magReading.z;
+    msg.timestamp = elapsedTime + millis();
 
-    // make measurement
-
-    sensor.readMag(magData);
-
-    // package it
-
-    slaveMessage = package(magData);
-
-    // transmit it
-
-    transmitMessage(&slaveMessage, masterMAC);
-
-    // deepsleep, until next iteration
-    deepSleep(NORMALSLEEPDURATIONMS);
+    publishMessage(&msg, masterMAC, elapsedTime);
 }
 
 void loop() {
-    // Should not reach here
+    // should not reach here
+    Serial.println("LOOP");
+    delay(1000);
 }
