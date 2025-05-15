@@ -3,7 +3,6 @@
  *  Panagiotis Prountzos 2025
  *
  *  Slave node branch
- *
  */
 
 #include <WiFi.h>
@@ -13,8 +12,8 @@
 
 // firmware variables
 LSM303 sensor(true, false);
-uint8_t masterMAC[] = {0x54, 0x32, 0x04, 0x3d, 0x5c, 0xf4};
-uint32_t selfID = 0;
+uint8_t masterMAC[] = {0x30, 0xC9, 0x22, 0xB0, 0xE4, 0x6C};
+uint32_t selfID = 1;
 
 // status variables
 fvec3 magReading;
@@ -29,7 +28,6 @@ void dataTransmissionCallback(const uint8_t *mac_addr, esp_now_send_status_t sta
 }
 
 void setup() {
-    Serial.begin(115200);
     initSlave();
 
     msg.id = selfID;
@@ -54,7 +52,6 @@ void setup() {
 }
 
 void loop() {
-    // should not reach here
-    Serial.println("LOOP");
+    // should NEVER reach here
     delay(1000);
 }

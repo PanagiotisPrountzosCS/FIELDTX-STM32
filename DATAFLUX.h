@@ -3,7 +3,6 @@
  *  Panagiotis Prountzos 2025
  *
  *  Slave node branch
- *
  */
 
 #ifndef _DATAFLUX_H
@@ -39,13 +38,14 @@ void indicateError(uint8_t errorCode) {
         digitalWrite(LED, LOW);
         delay(200);
     }
+    delay(1000);
 }
 
 void deepSleep(uint32_t& elapsedTime) {
     uint32_t offset = millis();
     uint32_t sleepTime = CYCLE_DURATION_MS;
 
-    if(offset < CYCLE_DURATION_MS){
+    if (offset < CYCLE_DURATION_MS) {
         sleepTime -= offset;
     }
 
@@ -70,7 +70,7 @@ bool initESPNOW(esp_now_peer_info_t& peerInfo, const uint8_t* receiver,
 
     peerInfo.channel = 0;
     peerInfo.encrypt = false;
-    // Register Receiver Device
+    // Register master node(receiver)
     memcpy(peerInfo.peer_addr, receiver, 6);
 
     if (esp_now_add_peer(&peerInfo) != ESP_OK) {
