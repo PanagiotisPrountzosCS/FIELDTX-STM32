@@ -3,7 +3,6 @@
  *  Panagiotis Prountzos 2025
  *
  *  Slave node branch
- *
  */
 
 #include <WiFi.h>
@@ -29,7 +28,6 @@ void dataTransmissionCallback(const uint8_t *mac_addr, esp_now_send_status_t sta
 }
 
 void setup() {
-    Serial.begin(115200);
     initSlave();
 
     msg.id = selfID;
@@ -54,7 +52,6 @@ void setup() {
 }
 
 void loop() {
-    // should not reach here
-    Serial.println("LOOP");
+    // should NEVER reach here
     delay(1000);
 }
