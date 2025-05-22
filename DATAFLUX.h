@@ -9,9 +9,11 @@
 #define _DATAFLUX_H
 
 #include "modules/ALSMD/ALSMD.h"
+#include "esp_wifi.h"
 
 #define LED 15
 #define CYCLE_DURATION_MS 1000
+#define WIFI_CHANNEL 10 //fixed channel because master node needs both espnow and wifi :(
 
 enum errorCodes {
     ESP_NOW_INIT_ERROR = 0x01,
@@ -38,13 +40,14 @@ void indicateError(uint8_t errorCode) {
         digitalWrite(LED, LOW);
         delay(200);
     }
+    delay(1000);
 }
 
 void deepSleep(uint32_t& elapsedTime) {
     uint32_t offset = millis();
     uint32_t sleepTime = CYCLE_DURATION_MS;
 
-    if(offset < CYCLE_DURATION_MS){
+    if (offset < CYCLE_DURATION_MS) {
         sleepTime -= offset;
     }
 
@@ -62,6 +65,7 @@ void initSlave() {
 
 bool initESPNOW(esp_now_peer_info_t& peerInfo, const uint8_t* receiver,
                 esp_now_send_cb_t onDataSent) {
+    esp_wifi_set_channel(WIFI_CHANNEL, WIFI_SECOND_CHAN_NONE);
     if (esp_now_init() != ESP_OK) {
         indicateError(ESP_NOW_INIT_ERROR);
         return false;
