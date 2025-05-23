@@ -8,12 +8,20 @@
 #ifndef _DATAFLUX_H
 #define _DATAFLUX_H
 
-#define LED 15
+#include <PubSubClient.h>
 
-#define TICK_DURATION 50
+#include "esp_wifi.h"
+
+#define LED 2
+
+#define TICK_DURATION 250
 #define MESSAGE_QUEUE_MAX_SIZE 100
 #define MESSAGE_QUEUE_FLUSH_SIZE 25
 #define MESSAGE_QUEUE_FLUSH_INTERVAL 3000
+#define CONNECT_WIFI_TIMEOUT 30000  // attempt to connect to wifi for 1 minute
+#define MQTT_CONNECT_TIMEOUT 30000  // same, but mqtt
+#define WIFI_CHANNEL 10
+#define MAX_MQTT_MESSAGE_SIZE 256
 
 typedef struct {
     float x;
@@ -23,9 +31,17 @@ typedef struct {
     uint32_t timestamp;
 } message;
 
-enum ErrorCodes { ESP_NOW_INIT_ERROR = 0x01 };
+constexpr uint32_t msgBufferSize = MAX_MQTT_MESSAGE_SIZE / sizeof(message);
 
-void indicateError(uint8_t errorCode) {
+enum ErrorCodes {
+    ESP_NOW_INIT_ERROR = 0x01,
+    ESP_NOW_REGISTER_CALLBACK_ERROR,
+    X_QUEUE_INIT_ERROR,
+    WIFI_CONNECT_ERROR,
+    MQTT_CONNECT_ERROR
+};
+
+void indicateError(uint8_t errorCode, bool triggerReset) {
     pinMode(LED, OUTPUT);
     for (int i = 0; i < errorCode; i++) {
         digitalWrite(LED, HIGH);
@@ -33,23 +49,70 @@ void indicateError(uint8_t errorCode) {
         digitalWrite(LED, LOW);
         delay(200);
     }
+    delay(1000);
+    if (triggerReset) abort();  // reset system
 }
 
 void initEspNow() {
-    if (esp_now_init() != ESP_OK) {
-        indicateError(1);
+    esp_wifi_set_channel(WIFI_CHANNEL, WIFI_SECOND_CHAN_NONE);
+    if (esp_now_init() != ESP_OK) indicateError(ESP_NOW_INIT_ERROR, true);
+}
+
+void pollQueue(PubSubClient* client, const char* mqtt_topic, QueueHandle_t dataQueue,
+               uint32_t& lastClear) {
+    if (millis() - lastClear > MESSAGE_QUEUE_FLUSH_INTERVAL ||
+        uxQueueMessagesWaiting(dataQueue) >= MESSAGE_QUEUE_FLUSH_SIZE) {
+        // empty queue in here
+        uint32_t counter = 0;
+        message msgArray[msgBufferSize];
+        while (xQueueReceive(dataQueue, msgArray + (counter++), 0) == pdTRUE) {
+            if (counter == msgBufferSize) {
+                client->publish(mqtt_topic, (uint8_t*)msgArray, counter * sizeof(message));
+                // Serial.println("Transmitted data : ");
+                // Serial.println(counter * sizeof(message));
+                counter = 0;
+            }
+        }
+
+        if (counter) {
+            client->publish(mqtt_topic, (uint8_t*)msgArray, counter * sizeof(message));
+            // Serial.println("Transmitted data : ");
+            // Serial.println(counter * sizeof(message));
+        }
+        lastClear = millis();
+        // Serial.println("==========");
     }
 }
 
-void pollQueue(QueueHandle_t dataQueue, uint32_t& lastClear) {
-    if (millis() - lastClear > MESSAGE_QUEUE_FLUSH_INTERVAL ||
-        uxQueueMessagesWaiting(dataQueue) >= MESSAGE_QUEUE_FLUSH_SIZE) {
-            message msg;
-
-            Serial.println("Emptying queue");
-            xQueueReset(dataQueue);
-            lastClear = millis();
+void setup_wifi(const char* ssid, const char* password) {
+    uint32_t startTime = millis();
+    WiFi.begin(ssid, password);
+    while (WiFi.status() != WL_CONNECTED && millis() - startTime < CONNECT_WIFI_TIMEOUT) {
+        delay(500);
     }
+    if (WiFi.status() != WL_CONNECTED) indicateError(WIFI_CONNECT_ERROR, true);
+    // Serial.println("Wifi Connected");
+}
+
+void setup_mqtt(WiFiClient* secureClient, PubSubClient* client,
+                const char* root_ca,  // change WiFiClientSecure*
+                const char* mqtt_server, const uint32_t mqtt_port) {
+    // secureClient->setCACert(root_ca);//change uncomment this
+
+    client->setServer(mqtt_server, mqtt_port);
+}
+
+void reconnect_mqtt(PubSubClient* client, const char* mqtt_username, const char* mqtt_password) {
+    uint32_t startTime = millis();
+    while (!client->connected() && millis() - startTime < MQTT_CONNECT_TIMEOUT) {
+        if (client->connect("DATAFLUX MASTER NODE", mqtt_username, mqtt_password)) {
+            client->publish("diagnostic", "Master node reconnected");
+        } else {
+            delay(500);
+        }
+    }
+    if (!client->connected()) indicateError(MQTT_CONNECT_ERROR, true);
+    // Serial.println("MQTT Connected");
 }
 
 #endif
