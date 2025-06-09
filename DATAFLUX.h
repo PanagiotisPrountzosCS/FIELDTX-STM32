@@ -92,7 +92,7 @@ bool initESPNOW(esp_now_peer_info_t& peerInfo, const uint8_t* receiver,
 
 bool initSensor(LSM303& sensor) {
     sensor.configure(ACCEL_RATE_0HZ, MAG_RATE_3HZ, ACCEL_MODE_POWERDOWN, MAG_MODE_SINGLE,
-                     ACCEL_SCALE_2G, MAG_SCALE_1_3);
+                     ACCEL_SCALE_2G, MAG_SCALE_8_1);
     if (!sensor.init()) {
         indicateError(SENSOR_INIT_ERROR);
         return false;
