@@ -11,21 +11,21 @@
 
 #include "DATAFLUX.h"
 
-WiFiClient secureClient;  // change to secure client
+WiFiClientSecure secureClient;  // change to secure client
 PubSubClient client(secureClient);
 QueueHandle_t dataQueue;
 uint32_t lastQueueClear;
 
-const char* ssid = "<wifi-ssid>";
-const char* password = "<wifi-password>";
+const char* ssid = "sample";
+const char* password = "sample";
 
-const char* mqtt_server = "<mqtt-server>";
-const int mqtt_port = "<mqtt-port>";
-const char* mqtt_topic = "<mqtt-topic>";
-const char* mqtt_username = "<mqtt-username>";
-const char* mqtt_password = "<mqtt-password>";
+const char* mqtt_server = "sample";
+const int mqtt_port = 8883;
+const char* mqtt_topic = "test";
+const char* mqtt_username = "sample";
+const char* mqtt_password = "sample";
 
-const char* root_ca = "<root-certificate>";
+const char* root_ca = "f";
 
 void onReceive(const esp_now_recv_info_t* info, const uint8_t* data, int len) {
     if (len != sizeof(message)) {
@@ -43,8 +43,10 @@ void setup() {
     WiFi.mode(WIFI_AP_STA);
 
     initEspNow();
-    int ch = WiFi.channel();
-    // Serial.println("Current Wi-Fi channel: " + String(ch));
+
+    // int ch = WiFi.channel();
+    // Serial.println(ch);
+
     if (esp_now_register_recv_cb(onReceive) != ESP_OK)
         indicateError(ESP_NOW_REGISTER_CALLBACK_ERROR, true);
 

@@ -20,7 +20,7 @@
 #define MESSAGE_QUEUE_FLUSH_INTERVAL 3000
 #define CONNECT_WIFI_TIMEOUT 30000  // attempt to connect to wifi for 1 minute
 #define MQTT_CONNECT_TIMEOUT 30000  // same, but mqtt
-#define WIFI_CHANNEL 10
+#define WIFI_CHANNEL 11
 #define MAX_MQTT_MESSAGE_SIZE 256
 
 typedef struct {
@@ -65,7 +65,8 @@ void pollQueue(PubSubClient* client, const char* mqtt_topic, QueueHandle_t dataQ
         // empty queue in here
         uint32_t counter = 0;
         message msgArray[msgBufferSize];
-        while (xQueueReceive(dataQueue, msgArray + (counter++), 0) == pdTRUE) {
+        while (xQueueReceive(dataQueue, msgArray + counter, 0) == pdTRUE) {
+            counter++;
             if (counter == msgBufferSize) {
                 client->publish(mqtt_topic, (uint8_t*)msgArray, counter * sizeof(message));
                 // Serial.println("Transmitted data : ");
@@ -91,13 +92,13 @@ void setup_wifi(const char* ssid, const char* password) {
         delay(500);
     }
     if (WiFi.status() != WL_CONNECTED) indicateError(WIFI_CONNECT_ERROR, true);
-    // Serial.println("Wifi Connected");
+    //Serial.println("Wifi Connected");
 }
 
-void setup_mqtt(WiFiClient* secureClient, PubSubClient* client,
+void setup_mqtt(WiFiClientSecure* secureClient, PubSubClient* client,
                 const char* root_ca,  // change WiFiClientSecure*
                 const char* mqtt_server, const uint32_t mqtt_port) {
-    // secureClient->setCACert(root_ca);//change uncomment this
+    secureClient->setCACert(root_ca);  // change uncomment this
 
     client->setServer(mqtt_server, mqtt_port);
 }
@@ -112,7 +113,7 @@ void reconnect_mqtt(PubSubClient* client, const char* mqtt_username, const char*
         }
     }
     if (!client->connected()) indicateError(MQTT_CONNECT_ERROR, true);
-    // Serial.println("MQTT Connected");
+    //Serial.println("MQTT Connected");
 }
 
 #endif
